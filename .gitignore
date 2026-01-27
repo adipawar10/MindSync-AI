@@ -1,0 +1,11 @@
+# Dependencies
+node_modules/
+
+# Mac System Files
+.DS_Store
+
+# Environment Variables (Secrets)
+.env
+
+# Firebase Master Key (CRITICAL SECURITY)
+server/serviceAccountKey.json
