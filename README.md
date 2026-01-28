@@ -1,6 +1,6 @@
 # 🧠 MindSync AI - Holistic Wellness Companion
 
-**MindSync AI** is a secure, full-stack wellness assistant designed to provide mental health support and fitness coaching. Unlike standard chatbots, MindSync features **emotional intelligence**—it detects user sentiment in real-time and dynamically adjusts its personality to be more empathetic during stressful conversations.
+**MindSync AI** is a secure, full-stack wellness assistant designed to provide mental health support and fitness coaching. Unlike standard chatbots, MindSync features **emotional intelligence** wherein it detects user sentiment in real time and dynamically adjusts its personality to be more empathetic during stressful conversations.
 
 The application supports **multimodal interaction** (Voice & Text), maintains long-term memory via a cloud database, and enforces strict security standards through server-side authentication.
 
