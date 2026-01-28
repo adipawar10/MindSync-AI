@@ -3,8 +3,8 @@ const express = require('express');
 const cors = require('cors');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const admin = require("firebase-admin");
+const fetch = require('node-fetch'); 
 
-// Firebase Setup
 const serviceAccount = require("./serviceAccountKey.json");
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
@@ -17,65 +17,70 @@ app.use(express.json());
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// NEW: Function to check Sentiment using Hugging Face
+// Sentiment Check
 async function checkSentiment(text) {
     try {
         const response = await fetch(
             "https://api-inference.huggingface.co/models/distilbert-base-uncased-finetuned-sst-2-english",
             {
-                headers: { Authorization: `Bearer ${process.env.HUGGING_FACE_KEY}` },
+                headers: { 
+                    Authorization: `Bearer ${process.env.HUGGING_FACE_KEY}`,
+                    "Content-Type": "application/json"
+                },
                 method: "POST",
                 body: JSON.stringify({ inputs: text }),
             }
         );
+
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("text/html")) return "NEUTRAL";
+
         const result = await response.json();
-        // The API returns an array like [[{label: 'NEGATIVE', score: 0.9}]]
-        // We just want the top label
-        if (result && result[0] && result[0][0]) {
-            return result[0][0].label; // Returns "POSITIVE" or "NEGATIVE"
-        }
+        if (result.error) return "NEUTRAL";
+        if (result && result[0] && result[0][0]) return result[0][0].label; 
         return "NEUTRAL";
     } catch (error) {
-        console.error("Hugging Face Error:", error);
-        return "NEUTRAL"; // If it fails, just ignore it
+        return "NEUTRAL"; 
     }
 }
 
 app.post('/api/chat', async (req, res) => {
     try {
-        // We now receive the User's Email too!
         const { prompt, userEmail } = req.body;
         
-        // 1. Check Sentiment (Hugging Face)
+        // 1. Check Sentiment
         const sentiment = await checkSentiment(prompt);
-        console.log(`User Sentiment: ${sentiment}`); // See this in your terminal!
+        console.log(`User Sentiment: ${sentiment}`); 
 
-        // 2. Adjust Prompt if User is Stressed
+        // 2. Adjust Prompt
         let finalPrompt = prompt;
         if (sentiment === 'NEGATIVE') {
-            finalPrompt = `(Context: The user sounds stressed/negative. Be extra empathetic and supportive.) ${prompt}`;
+            finalPrompt = `(Context: The user sounds stressed. Be extra empathetic.) ${prompt}`;
         }
 
-        // 3. Generate AI Response (Gemini)
-        const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+        // 3. Generate AI Response 
+        // FIX: Using the generic alias 'gemini-flash-latest' avoids the 404 and 429 errors
+        const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+        
         const result = await model.generateContent(finalPrompt);
         const response = await result.response;
         const text = response.text();
 
-        // 4. Save to Database (With User Email!)
+        // 4. Save to Database
         await db.collection('chats').add({
-            userEmail: userEmail || "Anonymous", // Save who sent it
+            userEmail: userEmail || "Anonymous", 
             userMessage: prompt,
             aiResponse: text,
-            sentiment: sentiment, // We even save the mood!
+            sentiment: sentiment, 
             timestamp: new Date()
         });
 
         res.json({ reply: text });
         
     } catch (error) {
-        console.error("Server Error:", error);
-        res.status(500).json({ error: "Internal Server Error" });
+        console.error("AI Error:", error);
+        // Better error message for the UI
+        res.status(500).json({ error: "I'm having a little trouble connecting. Please try again in a moment." });
     }
 });
 
